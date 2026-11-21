@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RecallFlow: Episodic Memory as the Source Distribution of Generative Robot Policies</title>
+<meta name="description" content="RecallFlow builds the source distribution of a flow policy from episodic memory, so that action generation starts at the remembered target instead of from Gaussian noise.">
+<link rel="canonical" href="https://xujizhang.github.io/RecallFlow/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="RecallFlow: Episodic Memory as the Source Distribution of Generative Robot Policies">
+<meta property="og:description" content="RecallFlow builds the source distribution of a flow policy from episodic memory, so that action generation starts at the remembered target instead of from Gaussian noise.">
+<meta property="og:url" content="https://xujizhang.github.io/RecallFlow/">
+<meta property="og:image" content="https://xujizhang.github.io/RecallFlow/media/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="media/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body data-work="recallflow">
+<div id="site-nav"></div>
+
+<header class="hero wrap">
+  <h1 class="title"><span class="name">RecallFlow</span>: Episodic Memory as the Source Distribution of Generative Robot Policies</h1>
+  <p class="authors">
+    <span class="au">Xuji Zhang</span>,
+    <span class="au">Qilin Zhong</span>,
+    <span class="au">Zichen Zhang</span>,
+    <span class="au">Wei Zhai</span>,
+    <span class="au">Jian Di</span>,
+    <span class="au">Kun Li</span>,
+    <span class="au">Yang Cao</span>,
+    <span class="au">Wenjun Lv<sup>&dagger;</sup></span>
+  </p>
+  <p class="affil">University of Science and Technology of China</p>
+  <p class="note"><sup>&dagger;</sup>Corresponding author</p>
+  <nav class="buttons" aria-label="Paper resources">
+    <a class="btn" href="https://arxiv.org/abs/2611.23731"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg>arXiv</a>
+    <a class="btn" href="#video"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z" fill="currentColor"/></svg>Video</a>
+    <a class="btn" href="https://github.com/xujizhang/RecallFlow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/></svg>Code<span class="soon">soon</span></a>
+    <a class="btn" href="#bibtex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 7h4v4c0 3-1.4 5-4 6M14 7h4v4c0 3-1.4 5-4 6"/></svg>BibTeX</a>
+  </nav>
+</header>
+
+<section class="wrap teaser" aria-label="Real-robot rollouts">
+  <div class="tgrid">
+    <figure class="tile"><video src="media/teaser-color.mp4" poster="media/teaser-color.jpg" width="960" height="540" autoplay muted loop playsinline data-auto></video><span class="tag">Remember Color</span><span class="speed">3&times;</span></figure>
+    <figure class="tile"><video src="media/teaser-norepeat.mp4" poster="media/teaser-norepeat.jpg" width="960" height="540" autoplay muted loop playsinline data-auto></video><span class="tag">No Repeat</span><span class="speed">3&times;</span></figure>
+    <figure class="tile"><video src="media/teaser-plate.mp4" poster="media/teaser-plate.jpg" width="960" height="540" autoplay muted loop playsinline data-auto></video><span class="tag">Marked Plate</span><span class="speed">3&times;</span></figure>
+    <figure class="tile"><video src="media/teaser-shell.mp4" poster="media/teaser-shell.jpg" width="960" height="540" autoplay muted loop playsinline data-auto></video><span class="tag">Shell Game</span><span class="speed">3&times;</span></figure>
+  </div>
+  <p class="cap">RecallFlow on four real-robot tasks in which the cue that decides the action is gone by the time the robot acts (one successful trial each, 3&times; speed).</p>
+</section>
+
+<section class="wrap narrow tldr">
+  <p><strong>TL;DR</strong>RecallFlow builds the source distribution of a flow policy from episodic memory, so that action generation starts at the remembered target instead of from Gaussian noise. It sets a new <span class="sota">SOTA</span> on the public MIKASA-Robo memory benchmark, with an average success rate of <b>80.4&nbsp;&plusmn;&nbsp;1.1%</b> over three seeds.</p>
+</section>
+
+<section class="block wrap narrow abstract" id="abstract">
+  <h2>Abstract</h2>
+  <p>Diffusion and flow-matching policies have become a standard choice for visuomotor imitation learning, owing to their ability to model multimodal action distributions. In memory-dependent manipulation, the robot must act on information that is no longer visible. Existing methods feed the observation history to the policy as an additional condition, while action generation still starts from Gaussian noise. However, the policy must then pick out the relevant target from a long and redundant history, leading to spurious correlations and unreliable decisions as the memory load grows. Additionally, the initial noise carries no information about what the robot has seen, leaving generation without guidance toward the remembered target. To address these issues, we propose RecallFlow, a flow-policy framework that builds the source distribution from episodic memory. Recall-Relocalization relates the memory to the current view through a few recall slots, so that the source reflects where the remembered targets are now. Recall Anchors then turns each slot into a Gaussian component of the source, enabling generation to start close to the intended action instead of from noise. The transport network then completes the action from the current observation alone, keeping inference nearly as cheap as a memoryless policy. We further build a suite of memory-dependent tasks grouped by memory load and compare all policies under a matched protocol. Extensive experiments show that RecallFlow achieves a state-of-the-art average success rate of 80.4% on the public MIKASA-Robo memory benchmark, and outperforms the strongest baseline by 20.3 points on our suite and by 18.8 points on four real-robot tasks.</p>
+</section>
+
+<section class="block wrap" id="idea">
+  <div class="prose center">
+    <span class="kicker">Idea</span>
+    <h2>Start from what you remember</h2>
+  </div>
+  <figure>
+    <div class="media white fit" style="--fit:640px"><img src="media/fig-teaser.png" width="1401" height="1296" alt="Shell game: with memory as a condition, generation starts from uninformed noise; with memory as the source, generation starts at the remembered cup."></div>
+    <figcaption class="prose center">In memory-dependent manipulation, the evidence that decides <em>which</em> action to take (<em>cue</em>) disappears before the robot acts (<em>now</em>). (a) Feeding the memory to the policy as a condition still starts generation from uninformed noise. (b) RecallFlow starts generation from what it remembers: the episodic memory <em>is</em> the source, and the transport network sees only the present.</figcaption>
+  </figure>
+</section>
+
+<section class="block wrap" id="method">
+  <div class="prose center">
+    <span class="kicker">Method</span>
+    <h2>Memory as the source distribution</h2>
+  </div>
+  <figure>
+    <div class="media white"><img src="media/fig-overview.png" width="2400" height="1048" loading="lazy" alt="Overview of RecallFlow: an episodic memory bank, recall slots that relocalize remembered targets in the current view, Gaussian anchors that form the source, and a transport network conditioned only on the present."></div>
+    <figcaption>The present observation is encoded into tokens <i>Z</i><sub>t</sub>. Recall-Relocalization lets <i>Z</i><sub>t</sub> read the episodic memory bank and decodes <i>K</i> recall slots, each attending to the current view through a heatmap <i>H</i><sub>k</sub>. Recall Anchors turns each slot into a Gaussian anchor in action space; with a standard Gaussian, the anchors form the source <i>p</i><sub>0</sub>. A transport network conditioned only on <i>Z</i><sub>t</sub> carries <i>x</i><sub>0</sub> ~ <i>p</i><sub>0</sub> to the action chunk, so memory reaches the action solely through the source.</figcaption>
+  </figure>
+</section>
+
+<section class="block wrap" id="analysis">
+  <div class="prose center">
+    <span class="kicker">Analysis</span>
+    <h2>Memory decides where generation starts</h2>
+    <p>Pick a decision in a <span style="font-variant:small-caps">NoRepeat</span> episode and move the slider through the generation steps. RecallFlow's samples head to an untouched container from the source on, whereas long-history DP starts from noise and commits only in its last generation steps. Averaged over the 15 decisions, 99.6% of RecallFlow's source samples already head to an untouched container, against 4.0% for long-history DP, so RecallFlow keeps its success rate even with a single generation step.</p>
+  </div>
+  <div class="gen" id="gen" hidden>
+    <div class="gen-bar">
+      <div class="gen-dec">
+        <span class="gen-lab">Decision</span>
+        <button type="button" class="gen-nav" data-d="-1" aria-label="Previous decision">&lsaquo;</button>
+        <select id="gen-select" aria-label="Decision"></select>
+        <button type="button" class="gen-nav" data-d="1" aria-label="Next decision">&rsaquo;</button>
+      </div>
+    </div>
+    <div class="gen-panels">
+      <figure class="gen-panel lh"><div class="gen-name">Long-history DP</div><canvas aria-label="Samples of long-history DP at the selected generation step"></canvas><div class="gen-count"></div></figure>
+      <figure class="gen-panel ours"><div class="gen-name">RecallFlow (ours)</div><canvas aria-label="Samples of RecallFlow at the selected generation step"></canvas><div class="gen-count"></div></figure>
+    </div>
+    <div class="gen-ctrl">
+      <button type="button" class="gen-play" id="gen-play" aria-label="Play"></button>
+      <div class="gen-slider">
+        <input type="range" id="gen-step" min="0" max="8" step="0.01" value="0" aria-label="Generation step">
+        <div class="gen-ticks"><span>0 &middot; source</span><span>8 &middot; action</span></div>
+      </div>
+      <div class="gen-steplab" id="gen-steplab">Step 0 / 8</div>
+    </div>
+    <p class="gen-key">Each line is one of 30 sampled action chunks (gripper path) at the selected step; the dot marks where it ends. Gold &#10003;: container already touched.</p>
+    <div class="gen-charts">
+      <figure class="gen-chart"><figcaption>Samples heading to an untouched container (%), average over 15 decisions</figcaption><svg id="gen-curve" role="img" aria-label="Share of samples heading to an untouched container at each generation step, for both policies"></svg></figure>
+      <figure class="gen-chart"><figcaption>Success rate on NoRepeat with fewer generation steps (RecallFlow, seed 0)</figcaption><div class="bars" id="gen-few"></div></figure>
+    </div>
+  </div>
+  <p class="cap" id="gen-fallback">This interactive figure needs JavaScript.</p>
+</section>
+
+<section class="block wrap" id="real">
+  <div class="prose center">
+    <span class="kicker">Experiments</span>
+    <h2>Real robot</h2>
+    <p>We deploy the policies on an xArm&nbsp;7 with a parallel gripper, a wrist camera, and a third-person camera, and design four tasks that differ in what must be remembered. Each policy is evaluated in 24 trials per task, with the operator unaware of which policy is running. Over all 96 trials, RecallFlow succeeds in <b>82.3%</b>, ahead of long-history DP (63.5%), DP (29.2%), and FM (18.8%).</p>
+  </div>
+  <figure>
+    <div class="media white"><img src="media/fig-real.png" width="2400" height="758" loading="lazy" alt="Real-robot setup, the four tasks, success rates per task, and the three behaviors observed on No Repeat."></div>
+    <figcaption>(a) We deploy the policies on an xArm&nbsp;7 with a wrist camera and a third-person camera. (b) We design four tasks that differ in what must be remembered. (c) RecallFlow achieves the highest success rate on all four tasks. (d) The three behaviors observed on No Repeat: repeating one cup, touching one cup twice, and touching each cup once.</figcaption>
+  </figure>
+
+  <div class="tabbar" role="tablist" aria-label="Real-robot tasks">
+    <button class="tab" role="tab" id="tab-norepeat" aria-controls="p-norepeat" aria-selected="true">No Repeat</button>
+    <button class="tab" role="tab" id="tab-color" aria-controls="p-color" aria-selected="false" tabindex="-1">Remember Color</button>
+    <button class="tab" role="tab" id="tab-plate" aria-controls="p-plate" aria-selected="false" tabindex="-1">Marked Plate</button>
+    <button class="tab" role="tab" id="tab-shell" aria-controls="p-shell" aria-selected="false" tabindex="-1">Shell Game</button>
+    <button class="tab" role="tab" id="tab-nomem" aria-controls="p-nomem" aria-selected="false" tabindex="-1">Without memory</button>
+  </div>
+
+  <div class="tabpanel" role="tabpanel" id="p-norepeat" aria-labelledby="tab-norepeat">
+    <div class="task-head"><b>No Repeat</b><span>Touch each of three identical cups exactly once.</span></div>
+    <figure class="media"><video data-src="media/real-norepeat.mp4" poster="media/real-norepeat.jpg" width="1920" height="500" muted loop playsinline data-auto></video></figure>
+    <div class="under">
+      <div class="legend">
+        <p>Without memory, DP keeps touching the same cup. Long-history DP returns to a cup it has already touched. RecallFlow touches each cup once.</p>
+        <p><span class="dot g">1</span>touched once &nbsp; <span class="dot r">2</span>touched again &nbsp; <span class="dot o">0</span>never touched. Touch counts are marked by hand from the videos. Speed: DP 4&times;, the others 3&times;.</p>
+      </div>
+      <div>
+        <p class="bars-title">Successful trials out of 24</p>
+        <div class="bars">
+          <span class="lab">DP</span><span class="track"><span class="fill" style="width:0%"></span></span><span class="val">0 / 24</span>
+          <span class="lab">FM</span><span class="track"><span class="fill fm" style="width:0%"></span></span><span class="val">0 / 24</span>
+          <span class="lab">Long-history DP</span><span class="track"><span class="fill lh" style="width:58.33%"></span></span><span class="val">14 / 24</span>
+          <span class="lab us">RecallFlow</span><span class="track"><span class="fill us" style="width:70.83%"></span></span><span class="val us">17 / 24</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabpanel" role="tabpanel" id="p-color" aria-labelledby="tab-color" hidden>
+    <div class="task-head"><b>Remember Color</b><span>Pick the block of the color shown earlier.</span></div>
+    <figure class="media"><video data-src="media/real-color.mp4" poster="media/real-color.jpg" width="1920" height="554" muted loop playsinline data-auto></video></figure>
+    <div class="under">
+      <div class="legend"><p>The cue is red in both trials. Long-history DP picks the green block; RecallFlow picks the red one. Two different trials, 4&times; speed.</p></div>
+      <div>
+        <p class="bars-title">Successful trials out of 24</p>
+        <div class="bars">
+          <span class="lab">DP</span><span class="track"><span class="fill" style="width:37.5%"></span></span><span class="val">9 / 24</span>
+          <span class="lab">FM</span><span class="track"><span class="fill fm" style="width:20.83%"></span></span><span class="val">5 / 24</span>
+          <span class="lab">Long-history DP</span><span class="track"><span class="fill lh" style="width:37.5%"></span></span><span class="val">9 / 24</span>
+          <span class="lab us">RecallFlow</span><span class="track"><span class="fill us" style="width:83.33%"></span></span><span class="val us">20 / 24</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabpanel" role="tabpanel" id="p-plate" aria-labelledby="tab-plate" hidden>
+    <div class="task-head"><b>Marked Plate</b><span>Put the cube on the plate a person set down.</span></div>
+    <figure class="media"><video data-src="media/real-plate.mp4" poster="media/real-plate.jpg" width="1920" height="554" muted loop playsinline data-auto></video></figure>
+    <div class="under">
+      <div class="legend"><p>Long-history DP puts the cube on a plate the person did not set down; RecallFlow chooses the right plate. Two different trials, 4&times; speed.</p></div>
+      <div>
+        <p class="bars-title">Successful trials out of 24</p>
+        <div class="bars">
+          <span class="lab">DP</span><span class="track"><span class="fill" style="width:50%"></span></span><span class="val">12 / 24</span>
+          <span class="lab">FM</span><span class="track"><span class="fill fm" style="width:33.33%"></span></span><span class="val">8 / 24</span>
+          <span class="lab">Long-history DP</span><span class="track"><span class="fill lh" style="width:91.67%"></span></span><span class="val">22 / 24</span>
+          <span class="lab us">RecallFlow</span><span class="track"><span class="fill us" style="width:100%"></span></span><span class="val us">24 / 24</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabpanel" role="tabpanel" id="p-shell" aria-labelledby="tab-shell" hidden>
+    <div class="task-head"><b>Shell Game</b><span>Lift the cup a person hid the cube under.</span></div>
+    <figure class="media"><video data-src="media/real-shell.mp4" poster="media/real-shell.jpg" width="1920" height="554" muted loop playsinline data-auto></video></figure>
+    <div class="under">
+      <div class="legend"><p>Long-history DP lifts a cup with nothing under it; RecallFlow lifts the cup that hides the cube. Two different trials, 4&times; speed.</p></div>
+      <div>
+        <p class="bars-title">Successful trials out of 24</p>
+        <div class="bars">
+          <span class="lab">DP</span><span class="track"><span class="fill" style="width:29.17%"></span></span><span class="val">7 / 24</span>
+          <span class="lab">FM</span><span class="track"><span class="fill fm" style="width:20.83%"></span></span><span class="val">5 / 24</span>
+          <span class="lab">Long-history DP</span><span class="track"><span class="fill lh" style="width:66.67%"></span></span><span class="val">16 / 24</span>
+          <span class="lab us">RecallFlow</span><span class="track"><span class="fill us" style="width:75%"></span></span><span class="val us">18 / 24</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabpanel" role="tabpanel" id="p-nomem" aria-labelledby="tab-nomem" hidden>
+    <div class="task-head"><b>Motions are generated, not selected</b><span>Two failures of FM, i.e., RecallFlow without memory.</span></div>
+    <figure class="media"><video data-src="media/real-stall.mp4" poster="media/real-stall.jpg" width="1864" height="640" muted loop playsinline data-auto></video></figure>
+    <div class="legend" style="margin-top:12px"><p>The policies generate their motions rather than choose among scripted trajectories. Without memory, the flow policy can even stall between two candidates: in Remember Color it stops between two blocks, and in Shell Game it comes down between two cups.</p></div>
+  </div>
+</section>
+
+<section class="block wrap" id="simulation">
+  <div class="prose center">
+    <span class="kicker">Experiments</span>
+    <h2>Simulation</h2>
+    <p>We evaluate on RecallSuite, our suite of five memory-dependent tasks grouped by memory load, on the public MIKASA-Robo memory benchmark, and on RoboMimic, where memory is not needed. On RecallSuite, RecallFlow outperforms the strongest baseline by 20.3 points on average (84.6% vs. 64.3%), with the largest margins where several items must be remembered.</p>
+  </div>
+  <figure>
+    <div class="media white"><img src="media/fig-benchmarks.png" width="2400" height="781" loading="lazy" alt="The five RecallSuite tasks, and tasks from MIKASA-Robo and RoboMimic."></div>
+    <figcaption>(a) RecallSuite consists of five memory-dependent tasks: the cue is seen only earlier in the episode, and the candidates look identical when the robot must decide. (b), (c) Tasks from MIKASA-Robo and RoboMimic.</figcaption>
+  </figure>
+
+  <div class="tabbar" role="tablist" aria-label="Simulation benchmarks">
+    <button class="tab" role="tab" id="tab-single" aria-controls="p-single" aria-selected="true">One item</button>
+    <button class="tab" role="tab" id="tab-multi" aria-controls="p-multi" aria-selected="false" tabindex="-1">Several items</button>
+    <button class="tab" role="tab" id="tab-mikasa" aria-controls="p-mikasa" aria-selected="false" tabindex="-1">MIKASA-Robo<span class="sota-tag">SOTA</span></button>
+    <button class="tab" role="tab" id="tab-robomimic" aria-controls="p-robomimic" aria-selected="false" tabindex="-1">RoboMimic</button>
+  </div>
+
+  <div class="tabpanel" role="tabpanel" id="p-single" aria-labelledby="tab-single">
+    <div class="task-head"><b>RecallSuite &middot; one item to remember</b><span>A long history suffices: long-history DP and RecallFlow are on par.</span></div>
+    <figure class="media fit" style="--fit:900px"><video data-src="media/sim-single.mp4" poster="media/sim-single.jpg" width="1494" height="824" muted loop playsinline data-auto></video></figure>
+    <div class="tbl-wrap">
+      <table class="res">
+        <thead>
+          <tr class="grp"><th></th><th colspan="2" class="hl hl-l hl-r hl-t">Single item</th><th colspan="3">Multiple items</th><th></th></tr>
+          <tr><th>Method</th><th class="hl hl-l">MarkedPlate</th><th class="hl hl-r">CountSwing</th><th>NoRepeat</th><th>NoRepeat-4</th><th>MarkedPair</th><th class="avg">Avg.</th></tr>
+        </thead>
+        <tbody>
+          <tr class="chance"><td><i>Chance</i></td><td class="hl hl-l">20.0</td><td class="hl hl-r">11.7</td><td>22.2</td><td>9.4</td><td>16.7</td><td class="avg">16.0</td></tr>
+          <tr class="group"><td>Memoryless</td><td class="hl hl-l"></td><td class="hl hl-r"></td><td></td><td></td><td></td><td class="avg"></td></tr>
+          <tr><td>DP</td><td class="hl hl-l">17.3</td><td class="hl hl-r">10.0</td><td>1.3</td><td>0.0</td><td>1.3</td><td class="avg">6.0</td></tr>
+          <tr><td>FM</td><td class="hl hl-l">16.0</td><td class="hl hl-r">6.3</td><td>13.3</td><td>2.3</td><td>0.0</td><td class="avg">7.6</td></tr>
+          <tr class="group"><td>History-conditioned</td><td class="hl hl-l"></td><td class="hl hl-r"></td><td></td><td></td><td></td><td class="avg"></td></tr>
+          <tr><td>Medium-history DP</td><td class="b hl hl-l">100.0</td><td class="hl hl-r">10.3</td><td>31.7</td><td>1.7</td><td>4.7</td><td class="avg">29.7</td></tr>
+          <tr><td>Long-history DP</td><td class="b hl hl-l">100.0</td><td class="b hl hl-r">99.0</td><td class="s">70.7</td><td class="s">15.0</td><td class="s">36.7</td><td class="avg s">64.3</td></tr>
+          <tr class="group"><td>Memory as source</td><td class="hl hl-l"></td><td class="hl hl-r"></td><td></td><td></td><td></td><td class="avg"></td></tr>
+          <tr class="us"><td>RecallFlow</td><td class="s hl hl-l hl-b">95.7</td><td class="s hl hl-r hl-b">98.3</td><td class="b">97.0</td><td class="b">64.7</td><td class="b">67.3</td><td class="avg b">84.6</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="tnote">Success rate (%) on RecallSuite (Table&nbsp;1 of the paper), averaged over three training seeds; the framed columns are the tasks of this tab. Best in bold, second best underlined.</p>
+  </div>
+
+  <div class="tabpanel" role="tabpanel" id="p-multi" aria-labelledby="tab-multi" hidden>
+    <div class="task-head"><b>RecallSuite &middot; several items to remember</b><span>Long-history DP loses track and misses targets; RecallFlow keeps track of every touch and every mark.</span></div>
+    <figure class="media"><video data-src="media/sim-multi.mp4" poster="media/sim-multi.jpg" width="1790" height="830" muted loop playsinline data-auto></video></figure>
+    <div class="tbl-wrap">
+      <table class="res">
+        <thead>
+          <tr class="grp"><th></th><th colspan="2">Single item</th><th colspan="3" class="hl hl-l hl-r hl-t">Multiple items</th><th></th></tr>
+          <tr><th>Method</th><th>MarkedPlate</th><th>CountSwing</th><th class="hl hl-l">NoRepeat</th><th class="hl">NoRepeat-4</th><th class="hl hl-r">MarkedPair</th><th class="avg">Avg.</th></tr>
+        </thead>
+        <tbody>
+          <tr class="chance"><td><i>Chance</i></td><td>20.0</td><td>11.7</td><td class="hl hl-l">22.2</td><td class="hl">9.4</td><td class="hl hl-r">16.7</td><td class="avg">16.0</td></tr>
+          <tr class="group"><td>Memoryless</td><td></td><td></td><td class="hl hl-l"></td><td class="hl"></td><td class="hl hl-r"></td><td class="avg"></td></tr>
+          <tr><td>DP</td><td>17.3</td><td>10.0</td><td class="hl hl-l">1.3</td><td class="hl">0.0</td><td class="hl hl-r">1.3</td><td class="avg">6.0</td></tr>
+          <tr><td>FM</td><td>16.0</td><td>6.3</td><td class="hl hl-l">13.3</td><td class="hl">2.3</td><td class="hl hl-r">0.0</td><td class="avg">7.6</td></tr>
+          <tr class="group"><td>History-conditioned</td><td></td><td></td><td class="hl hl-l"></td><td class="hl"></td><td class="hl hl-r"></td><td class="avg"></td></tr>
+          <tr><td>Medium-history DP</td><td class="b">100.0</td><td>10.3</td><td class="hl hl-l">31.7</td><td class="hl">1.7</td><td class="hl hl-r">4.7</td><td class="avg">29.7</td></tr>
+          <tr><td>Long-history DP</td><td class="b">100.0</td><td class="b">99.0</td><td class="s hl hl-l">70.7</td><td class="s hl">15.0</td><td class="s hl hl-r">36.7</td><td class="avg s">64.3</td></tr>
+          <tr class="group"><td>Memory as source</td><td></td><td></td><td class="hl hl-l"></td><td class="hl"></td><td class="hl hl-r"></td><td class="avg"></td></tr>
+          <tr class="us"><td>RecallFlow</td><td class="s">95.7</td><td class="s">98.3</td><td class="b hl hl-l hl-b">97.0</td><td class="b hl hl-b">64.7</td><td class="b hl hl-r hl-b">67.3</td><td class="avg b">84.6</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="tnote">Success rate (%) on RecallSuite (Table&nbsp;1 of the paper), averaged over three training seeds; the framed columns are the tasks of this tab. Best in bold, second best underlined.</p>
+  </div>
+
+  <div class="tabpanel" role="tabpanel" id="p-mikasa" aria-labelledby="tab-mikasa" hidden>
+    <div class="task-head"><b>MIKASA-Robo &middot; public memory benchmark</b><span>RecallFlow reaches the highest average success rate among published methods: <span class="sota">SOTA</span>, 80.4&nbsp;&plusmn;&nbsp;1.1 over three seeds.</span></div>
+    <figure class="media"><video data-src="media/mikasa.mp4" poster="media/mikasa.jpg" width="1640" height="794" muted loop playsinline data-auto></video></figure>
+    <div class="tbl-wrap">
+      <table class="res">
+        <thead><tr><th>Method</th><th>SGT</th><th>IM</th><th>RC3</th><th>RC5</th><th>RC9</th><th class="avg">Avg.</th></tr></thead>
+        <tbody>
+          <tr><td>Octo-small</td><td>46</td><td>39</td><td>45</td><td>17</td><td>11</td><td class="avg">31.6</td></tr>
+          <tr><td>OpenVLA<sup>&Dagger;</sup></td><td>47</td><td>14</td><td>59</td><td>16</td><td>6</td><td class="avg">28.4</td></tr>
+          <tr><td>&pi;<sub>0</sub></td><td>33</td><td>42</td><td>35</td><td>22</td><td>15</td><td class="avg">29.4</td></tr>
+          <tr><td>SpatialVLA</td><td>23</td><td>27</td><td>27</td><td>17</td><td>11</td><td class="avg">21.0</td></tr>
+          <tr><td>CronusVLA</td><td>32</td><td>5</td><td>31</td><td>13</td><td>9</td><td class="avg">18.0</td></tr>
+          <tr><td>MemoryVLA</td><td>88</td><td>24</td><td>44</td><td>30</td><td>20</td><td class="avg">41.2</td></tr>
+          <tr><td>GMP</td><td>98</td><td class="s">83</td><td>80</td><td>61</td><td>17</td><td class="avg">67.8</td></tr>
+          <tr><td>SimpleMemVLA<sup>*</sup></td><td class="s">99</td><td class="s">83</td><td>71</td><td>58</td><td class="b">59</td><td class="avg">74.0</td></tr>
+          <tr><td>Chameleon</td><td>96.7</td><td>58.9</td><td class="s">94.4</td><td class="s">72.2</td><td class="s">53.3</td><td class="avg s">75.1</td></tr>
+          <tr class="us"><td>RecallFlow</td><td class="b">100.0</td><td class="b">87.3</td><td class="b">100.0</td><td class="b">78.3</td><td>36.3</td><td class="avg b">80.4</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="tnote">Success rate (%) on ShellGameTouch (SGT), InterceptMedium (IM), and RememberColor with 3, 5, and 9 colors (RC3&ndash;RC9). Results of other methods are as reported in prior work (sources in Table&nbsp;2 of the paper). <sup>*</sup>Available only on arXiv. <sup>&Dagger;</sup>OpenVLA-OFT in MemoryVLA.</p>
+  </div>
+
+  <div class="tabpanel" role="tabpanel" id="p-robomimic" aria-labelledby="tab-robomimic" hidden>
+    <div class="task-head"><b>RoboMimic &middot; memory not needed</b><span>RecallFlow stays on par with its memoryless counterpart FM, whereas adding a long history lowers DP.</span></div>
+    <figure class="media"><video data-src="media/robomimic.mp4" poster="media/robomimic.jpg" width="1696" height="792" muted loop playsinline data-auto></video></figure>
+    <div class="tbl-wrap">
+      <table class="res compact">
+        <thead><tr><th>Method</th><th>Square ph</th><th>Square mh</th><th class="avg">Avg.</th></tr></thead>
+        <tbody>
+          <tr><td>DP</td><td class="b">98.0<span class="cb"><i style="width:98%"></i></span></td><td>73.3<span class="cb"><i style="width:73.3%"></i></span></td><td class="avg">85.7<span class="cb"><i style="width:85.7%"></i></span></td></tr>
+          <tr><td>FM</td><td>97.0<span class="cb"><i style="width:97%"></i></span></td><td>75.3<span class="cb"><i style="width:75.3%"></i></span></td><td class="avg">86.2<span class="cb"><i style="width:86.2%"></i></span></td></tr>
+          <tr class="lhr"><td>Long-history DP<sup>&dagger;</sup></td><td>86<span class="cb"><i style="width:86%"></i></span></td><td>69<span class="cb"><i style="width:69%"></i></span></td><td class="avg">77.5<span class="cb"><i style="width:77.5%"></i></span></td></tr>
+          <tr class="us"><td>RecallFlow</td><td>94.0<span class="cb"><i style="width:94%"></i></span></td><td class="b">84.0<span class="cb"><i style="width:84%"></i></span></td><td class="avg b">89.0<span class="cb"><i style="width:89%"></i></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="tnote">Success rate (%) on Square with proficient (ph) and multi-human (mh) demonstrations, averaged over three seeds. <sup>&dagger;</sup>Reported in the GMP paper. Median latency per action chunk: 153.7&nbsp;ms for RecallFlow against 152.6&nbsp;ms for FM (one RTX 4090, batch size 1).</p>
+  </div>
+
+</section>
+
+<section class="block wrap" id="video">
+  <div class="prose center">
+    <h2>Video</h2>
+  </div>
+  <p class="sound"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19.5 5.5a9 9 0 0 1 0 13"/></svg>This video has sound: it opens with music. Please check your volume before playing.</p>
+  <figure class="media" style="margin-top:6px"><video src="media/RecallFlow-video.mp4" poster="media/RecallFlow-video.jpg" width="1920" height="1080" controls preload="none" playsinline></video></figure>
+  <p class="cap">Narrated overview with subtitles (2:27, with sound).</p>
+</section>
+
+<section class="block wrap narrow" id="bibtex">
+  <h2>BibTeX</h2>
+  <div class="bib">
+    <button class="copy" type="button" data-target="bibtex-text">Copy</button>
+<pre id="bibtex-text">@article{zhang2026recallflow,
+  title   = {RecallFlow: Episodic Memory as the Source Distribution of Generative Robot Policies},
+  author  = {Zhang, Xuji and Zhong, Qilin and Zhang, Zichen and Zhai, Wei and Di, Jian and Li, Kun and Cao, Yang and Lv, Wenjun},
+  journal = {arXiv preprint arXiv:2611.23731},
+  year    = {2026}
+}</pre>
+  </div>
+</section>
+
+<footer class="wrap">
+  <p>Last updated: November 2026 &middot; <a href="../research/">More research</a></p>
+</footer>
+
+<script src="../assets/works.js"></script>
+<script src="../assets/site.js"></script>
+<script src="media/gen/data.js"></script>
+<script src="gen.js"></script>
+</body>
+</html>

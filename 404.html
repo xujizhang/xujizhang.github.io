@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page not found · Xuji Zhang</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/works.js"></script>
+<script>
+  /* Project folders are case-sensitive on GitHub Pages: send /recallflow/... to /RecallFlow/... */
+  (function () {
+    var p = location.pathname, low = p.toLowerCase();
+    var S = window.SITE || {};
+    (S.papers || []).concat(S.collabs || []).forEach(function (w) {
+      if (!w.page) return;
+      var base = '/' + w.page.replace(/\/$/, '');
+      if ((low === base.toLowerCase() || low.indexOf(base.toLowerCase() + '/') === 0) && p.indexOf(base) !== 0) {
+        location.replace(base + p.slice(base.length) + location.search + location.hash);
+      }
+    });
+  })();
+</script>
+</head>
+<body data-work="">
+<div id="site-nav"></div>
+<main class="wrap narrow research">
+  <h1>Page not found</h1>
+  <p class="lead">The page you are looking for does not exist. See the <a href="/research/">research list</a>.</p>
+</main>
+<script src="/assets/site.js"></script>
+</body>
+</html>
